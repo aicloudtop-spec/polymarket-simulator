@@ -1,0 +1,110 @@
+<!doctype html><html><head>
+<meta charset="utf-8"><title>Prediction Market Game</title>
+<style>
+body{font-family:sans-serif;max-width:800px;margin:40px auto;background:#1a1a2e;color:#eee}
+.market,.controls,.leaderboard{background:#16213e;padding:20px;border-radius:8px;margin-bottom:20px}
+button{padding:10px 20px;margin:5px;font-size:16px;border:none;border-radius:5px;cursor:pointer}
+.buy-yes{background:#00b894;color:#fff}
+.buy-no{background:#d63031;color:#fff}
+.start{background:#0984e3;color:#fff}
+.log{background:#0f3460;padding:10px;height:200px;overflow-y:auto;font-family:monospace;font-size:13px;border-radius:5px}
+.win{color:#00b894;font-weight:bold}
+.lose{color:#d63031}
+</style></head><body>
+<h1>🎮 Prediction Market Race</h1>
+<p>Start the game, then trade to reach <strong>$100,000</strong> before the bots do!</p>
+
+<div class="controls">
+  <button class="start" onclick="startGame()">Start Game</button>
+  <span id="status">Not started</span>
+</div>
+
+<div class="market" id="marketInfo" style="display:none">
+  <h2>Market: <span id="mktDesc"></span></h2>
+  <p>YES price: $<span id="priceYes"></span> | NO price: $<span id="priceNo"></span></p>
+  <p>Your cash: $<span id="cash">1000</span> | Rounds: <span id="rounds">0</span></p>
+  <button class="buy-yes" onclick="trade('yes')">Buy YES</button>
+  <button class="buy-no" onclick="trade('no')">Buy NO</button>
+  <input type="number" id="qty" value="10" style="width:60px;padding:8px">
+</div>
+
+<div class="leaderboard">
+  <h3>Leaderboard</h3>
+  <div id="leaderboard">Game not started.</div>
+</div>
+
+<h3>Trade Log</h3>
+<div class="log" id="log"></div>
+
+<script>
+let marketId = null;
+let cash = 1000;
+let rounds = 0;
+let gameActive = false;
+
+async function startGame(){
+  // Create market
+  const mktRes = await fetch('/markets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:'Race to 100k'})});
+  const mkt = await mktRes.json();
+  marketId = mkt.id;
+  document.getElementById('mktDesc').textContent = mkt.description;
+  document.getElementById('marketInfo').style.display='block';
+  // Start bots (three of them)
+  const strategies = ['aggressive','standard','lowBets'];
+  for(const s of strategies){
+    await fetch('/bots/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketId,strategy:'momentum'})});
+  }
+  gameActive = true;
+  log('Game started! Bots are trading...');
+  updatePrices();
+  updateLeaderboard();
+  setInterval(updatePrices, 2000);
+  setInterval(updateLeaderboard, 5000);
+}
+
+async function updatePrices(){
+  if(!marketId) return;
+  const res = await fetch('/markets');
+  const markets = await res.json();
+  const mkt = markets.find(m=>m.id===marketId);
+  if(!mkt) return;
+  const priceYes = (mkt.outcomes.no/(mkt.outcomes.yes+mkt.outcomes.no)).toFixed(4);
+  const priceNo = (1-priceYes).toFixed(4);
+  document.getElementById('priceYes').textContent = priceYes;
+  document.getElementById('priceNo').textContent = priceNo;
+}
+
+async function trade(outcome){
+  if(!gameActive) return;
+  const qty = parseInt(document.getElementById('qty').value);
+  const res = await fetch('/trade',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({marketId, outcome, qty, amount: cash})});
+  const data = await res.json();
+  if(data.error){log('Error: '+data.error); return;}
+  cash = data.remaining;
+  rounds++;
+  document.getElementById('cash').textContent = cash.toFixed(2);
+  document.getElementById('rounds').textContent = rounds;
+  log(`Round ${rounds}: Bought ${qty} ${outcome} @$${outcome==='yes'?document.getElementById('priceYes').textContent:document.getElementById('priceNo').textContent}. Cash left: $${cash.toFixed(2)}`);
+  if(cash >= 100000){
+    log(`🏆 You reached $100,000 in ${rounds} rounds! YOU WIN!`, true);
+    gameActive = false;
+  }
+}
+
+async function updateLeaderboard(){
+  const res = await fetch('/bots');
+  const bots = await res.json();
+  let html = `<p>You: $${cash.toFixed(2)} (${rounds} rounds)</p>`;
+  html += '<p>Bots: '+bots.length+' active</p>';
+  document.getElementById('leaderboard').innerHTML = html;
+}
+
+function log(msg, win=false){
+  const logDiv = document.getElementById('log');
+  const cls = win?'win':'';
+  logDiv.innerHTML += `<div class="${cls}">${new Date().toLocaleTimeString()}: ${msg}</div>`;
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+</script>
+</body></html>

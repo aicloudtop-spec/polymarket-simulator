@@ -1,0 +1,20 @@
+Prediction market simulator running on :3000
+
+<--- Last few GCs --->
+
+[9985:0x1bdbf000]    29430 ms: Scavenge (interleaved) 2034.3 (2073.2) -> 2034.1 (2083.7) MB, pooled: 0 MB, 19.96 / 0.00 ms  (average mu = 0.222, current mu = 0.192) allocation failure; 
+[9985:0x1bdbf000]    32591 ms: Mark-Compact (reduce) 2034.3 (2083.7) -> 2034.3 (2070.2) MB, pooled: 0 MB, 2621.26 / 0.00 ms  (+ 3.8 ms in 0 steps since start of marking, biggest step 0.0 ms, walltime since start of marking 2631 ms) (average mu = 0.207, cu
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0xe42d60 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [node]
+ 2: 0x121ded0 v8::Utils::ReportOOMFailure(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+ 3: 0x121e1a7 v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [node]
+ 4: 0x144d015  [node]
+ 5: 0x144d043  [node]
+ 6: 0x146611a  [node]
+ 7: 0x14692e8  [node]
+ 8: 0x1cd07a1  [node]
